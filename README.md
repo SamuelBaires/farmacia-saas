@@ -225,8 +225,8 @@ Este sistema está configurado para un despliegue rápido usando **Render** (Fro
 2. Conecta tu repositorio de GitHub.
 3. Render detectará automáticamente el archivo `render.yaml`.
 4. Configura las siguientes variabes de entorno en Render:
-   - `VITE_SUPABASE_URL`: Tu URL de Supabase.
-   - `VITE_SUPABASE_ANON_KEY`: Tu clave anon de Supabase.
+   - `[VITE_SUPABASE_URL](https://kgdweazdhucbvyqhwjck.supabase.co)`: Tu URL de Supabase.
+   - `sb_publishable_cLRS--yvXhz5XiwBtDma5Q_5nq0z04E`: Tu clave anon de Supabase.
 5. El comando de build es `npm run build` (especificado en `render.yaml`).
 6. El directorio de publicación es `dist`.
 
@@ -247,4 +247,5 @@ Para soporte técnico, contactar a: [email de soporte]
 ---
 
 **Desarrollado para farmacias en El Salvador** 🇸🇻
+
 

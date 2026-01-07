@@ -23,11 +23,10 @@ CREATE TABLE farmacias (
 );
 
 CREATE TABLE usuarios (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
     nombre_completo VARCHAR(200) NOT NULL,
     rol rol_usuario NOT NULL,
     activo BOOLEAN DEFAULT TRUE,
@@ -174,3 +173,58 @@ CREATE TRIGGER update_usuarios_updated_at BEFORE UPDATE ON usuarios FOR EACH ROW
 CREATE TRIGGER update_proveedores_updated_at BEFORE UPDATE ON proveedores FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_medicamentos_updated_at BEFORE UPDATE ON medicamentos FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_clientes_updated_at BEFORE UPDATE ON clientes FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+-- RLS (Row Level Security) - Basic Setup for POC
+ALTER TABLE farmacias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all for authenticated users" ON farmacias FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow users to see their own profile" ON usuarios FOR SELECT TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Allow admins to see all profiles" ON usuarios FOR SELECT TO authenticated USING (
+    EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND rol = 'ADMINISTRADOR')
+);
+
+-- Note: In a production environment, you would add more granular policies.
+
+-- SEED DATA (Solo para entorno de pruebas/inicial)
+-- Primero creamos una farmacia por defecto
+INSERT INTO farmacias (id, nombre, nit, direccion, telefono)
+VALUES ('00000000-0000-0000-0000-000000000001', 'Farmacia Central POC', '0614-000000-001-0', 'San Salvador, SV', '2222-0000')
+ON CONFLICT (id) DO NOTHING;
+
+-- Instrucción para Supabase Auth:
+-- Los usuarios de Auth deben crearse a través de la interfaz de Supabase o la Auth API.
+-- Sin embargo, para este script SQL inicial, podemos insertar en auth.users si tienes permisos de superusuario,
+-- pero lo más seguro es que el usuario los cree manualmente o use una función de trigger.
+
+-- Por simplicidad en este POC, el trigger sincronizará si se crean desde el panel:
+/*
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.usuarios (id, farmacia_id, username, email, nombre_completo, rol)
+  VALUES (
+    NEW.id,
+    '00000000-0000-0000-0000-000000000001',
+    split_part(NEW.email, '@', 1),
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'nombre_completo', split_part(NEW.email, '@', 1)),
+    COALESCE((NEW.raw_user_meta_data->>'rol')::rol_usuario, 'CAJERO')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+*/
+
+-- DATOS DE PRUEBA (Para insertar después de haber creado los usuarios en Auth)
+-- Si ya tienes los IDs de auth.users, puedes insertarlos así:
+/*
+INSERT INTO usuarios (id, farmacia_id, username, email, nombre_completo, rol)
+VALUES 
+('UUID_ADMIN', '00000000-0000-0000-0000-000000000001', 'admin', 'admin@farmacia.com', 'Admin Demo', 'ADMINISTRADOR'),
+('UUID_FARM', '00000000-0000-0000-0000-000000000001', 'farmaceutico', 'farm@farmacia.com', 'Farm de Prueba', 'FARMACEUTICO'),
+('UUID_CAJA', '00000000-0000-0000-0000-000000000001', 'cajero', 'caja@farmacia.com', 'Caja de Prueba', 'CAJERO');
+*/

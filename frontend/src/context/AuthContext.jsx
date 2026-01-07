@@ -16,21 +16,61 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in
-        const token = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
+        // Check active sessions and sets the user
+        const initAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: profile } = await supabase
+                    .from('usuarios')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
 
-        if (token && savedUser) {
-            setUser(JSON.parse(savedUser));
-        }
+                const userData = profile || {
+                    id: session.user.id,
+                    email: session.user.email,
+                    rol: 'CAJERO',
+                    nombre_completo: session.user.email
+                };
+                setUser(userData);
+                localStorage.setItem('token', session.access_token);
+                localStorage.setItem('user', JSON.stringify(userData));
+            }
+            setLoading(false);
+        };
 
-        setLoading(false);
+        initAuth();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session) {
+                const { data: profile } = await supabase
+                    .from('usuarios')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                const userData = profile || {
+                    id: session.user.id,
+                    email: session.user.email,
+                    rol: 'CAJERO',
+                    nombre_completo: session.user.email
+                };
+                setUser(userData);
+                localStorage.setItem('token', session.access_token);
+                localStorage.setItem('user', JSON.stringify(userData));
+            } else {
+                setUser(null);
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            }
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const login = async (username, password) => {
-        const data = await authService.login(username, password);
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+    const login = async (email, password) => {
+        const data = await authService.login(email, password);
         setUser(data.user);
         return data;
     };

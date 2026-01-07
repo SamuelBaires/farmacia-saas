@@ -40,23 +40,39 @@ export default api;
 
 // Auth services
 export const authService = {
-    login: async (username, password) => {
-        // En un despliegue con Supabase Auth, se usaría supabase.auth.signInWithPassword
-        // Para este POC, simulamos el login si el backend de Python no está disponible
-        try {
-            const response = await api.post('/auth/login', { username, password });
-            return response.data;
-        } catch (error) {
-            console.warn('Backend Python no disponible, intentando Supabase o bypass...');
-            // Lógica de bypass para pruebas en Render sin backend real
-            if (username === 'admin' && password === 'admin123') {
-                const mockUser = { id: 'admin-id', username: 'admin', rol: 'ADMINISTRADOR' };
-                localStorage.setItem('token', 'mock-token');
-                localStorage.setItem('user', JSON.stringify(mockUser));
-                return { access_token: 'mock-token', user: mockUser };
-            }
-            throw error;
+    login: async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) throw error;
+
+        // Fetch user profile from public.usuarios
+        const { data: profile, error: profileError } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+        if (profileError) {
+            console.error('Error fetching profile:', profileError);
+            // Fallback for POC if profile doesn't exist yet but auth does
+            return {
+                access_token: data.session.access_token,
+                user: {
+                    id: data.user.id,
+                    email: data.user.email,
+                    rol: 'ADMINISTRADOR', // Default for new users in POC
+                    nombre_completo: data.user.email
+                }
+            };
         }
+
+        return {
+            access_token: data.session.access_token,
+            user: profile
+        };
     },
 
     logout: async () => {

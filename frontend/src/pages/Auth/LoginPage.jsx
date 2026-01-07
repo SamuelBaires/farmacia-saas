@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Lock, User, ArrowRight, Shield, Activity, Package } from 'lucide-react';
 
 const LoginPage = () => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
@@ -17,11 +17,24 @@ const LoginPage = () => {
         setLoading(true);
 
         try {
-            await login(username, password);
+            const data = await login(email, password);
             toast.success('¡Bienvenido al sistema!');
-            navigate('/');
+
+            // Redirect based on role
+            const role = data.user.rol;
+            if (role === 'ADMINISTRADOR') {
+                navigate('/');
+            } else if (role === 'FARMACEUTICO') {
+                navigate('/inventario');
+            } else if (role === 'CAJERO') {
+                navigate('/pos');
+            } else {
+                navigate('/');
+            }
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Credenciales incorrectas');
+            console.error('Login error:', error);
+            const errorMessage = error.message || 'Credenciales incorrectas';
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -99,18 +112,18 @@ const LoginPage = () => {
                         {/* Username Field */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 block">
-                                Usuario
+                                Correo Electrónico
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                     <User className="w-5 h-5" />
                                 </div>
                                 <input
-                                    type="text"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-900 placeholder-gray-400"
-                                    placeholder="nombre.usuario"
+                                    placeholder="usuario@farmacia.com"
                                     required
                                 />
                             </div>
@@ -164,14 +177,14 @@ const LoginPage = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="space-y-1">
                                     <span className="block text-xs font-medium text-gray-900">Admin</span>
-                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin</code>
+                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin@farmacia.com</code>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="block text-xs font-medium text-gray-900">Farmacéutico</span>
-                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">farmaceutico</code>
+                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">farm@farmacia.com</code>
                                 </div>
                                 <div className="space-y-1">
-                                    <span className="block text-xs font-medium text-gray-900">Paswword</span>
+                                    <span className="block text-xs font-medium text-gray-900">Password</span>
                                     <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin123</code>
                                 </div>
                             </div>

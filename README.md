@@ -230,11 +230,12 @@ Este sistema está configurado para un despliegue rápido usando **Render** (Fro
 5. El comando de build es `npm run build` (especificado en `render.yaml`).
 6. El directorio de publicación es `dist`.
 
-#### Acceso en la Nube
-Una vez desplegado, puedes entrar con:
-- **Usuario**: `admin`
-- **Contraseña**: `admin123`
-*(Bypass habilitado para pruebas iniciales sin backend Python)*
+#### Acceso en la Nube / Testing RBAC
+Una vez desplegado y configurado Supabase Auth con los perfiles en `public.usuarios`:
+- **Admin**: `admin@farmacia.com` / `admin123` (Acceso total)
+- **Farmacéutico**: `farm@farmacia.com` / `admin123` (Sin configuración)
+- **Cajero**: `caja@farmacia.com` / `admin123` (Solo POS y Ventas)
+*(Nota: Asegúrate de crear estos usuarios en Supabase Auth y sincronizarlos con la tabla `usuarios` usando el script SQL proporcionado).*
 
 ## 📝 Licencia
 

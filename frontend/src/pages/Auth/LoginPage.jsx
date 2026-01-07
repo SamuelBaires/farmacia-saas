@@ -1,0 +1,186 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+import { Lock, User, ArrowRight, Shield, Activity, Package } from 'lucide-react';
+
+const LoginPage = () => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [focusedField, setFocusedField] = useState(null);
+    const { login } = useAuth();
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            await login(username, password);
+            toast.success('¡Bienvenido al sistema!');
+            navigate('/');
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Credenciales incorrectas');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const features = [
+        { icon: Package, text: 'Control de Inventario' },
+        { icon: Activity, text: 'Punto de Venta' },
+        { icon: Shield, text: 'Cumplimiento Normativo' },
+    ];
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex">
+            {/* Left side - Branding (Hidden on mobile) */}
+            <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-primary-800 to-primary-900 relative overflow-hidden items-center justify-center p-12">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+                <div className="relative z-10 max-w-lg text-white space-y-8">
+                    <div className="flex items-center space-x-3 text-white/90">
+                        <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">Farmacia SaaS</span>
+                    </div>
+
+                    <div>
+                        <h2 className="text-4xl font-bold leading-tight mb-6">
+                            Gestión Inteligente para su Farmacia
+                        </h2>
+                        <p className="text-lg text-blue-100 leading-relaxed font-light">
+                            Simplifique su operación diaria, controle su inventario y cumpla con todas las normativas de El Salvador en una sola plataforma unificada.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6 pt-8">
+                        {features.map((feature, index) => (
+                            <div key={index} className="flex items-center space-x-3 text-blue-50">
+                                <feature.icon className="w-5 h-5 opacity-80" />
+                                <span className="text-sm font-medium">{feature.text}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="pt-8 border-t border-white/10 text-sm text-blue-200 flex items-center space-x-2">
+                        <Shield className="w-4 h-4" />
+                        <span>Plataforma Segura & Cumplimiento Normativo ISO 27001</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right side - Login Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+                <div className="w-full max-w-md space-y-8">
+                    {/* Mobile Branding */}
+                    <div className="lg:hidden flex items-center justify-center mb-8">
+                        <div className="flex items-center space-x-2 text-primary-700">
+                            <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
+                            <span className="text-xl font-bold">Farmacia SaaS</span>
+                        </div>
+                    </div>
+
+                    <div className="text-center lg:text-left space-y-2">
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Bienvenido de nuevo</h1>
+                        <p className="text-gray-500">
+                            Ingrese sus credenciales para acceder a su panel
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-6 mt-8">
+                        {/* Username Field */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 block">
+                                Usuario
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                    <User className="w-5 h-5" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-900 placeholder-gray-400"
+                                    placeholder="nombre.usuario"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        {/* Password Field */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-gray-700 block">
+                                    Contraseña
+                                </label>
+                                <a href="#" className="text-sm font-medium text-primary-600 hover:text-primary-700">
+                                    ¿Olvidó su contraseña?
+                                </a>
+                            </div>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                    <Lock className="w-5 h-5" />
+                                </div>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-900 placeholder-gray-400"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <>
+                                    <span>Ingresar al Sistema</span>
+                                    <ArrowRight className="w-4 h-4 ml-1" />
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Demo Credentials */}
+                    <div className="pt-8 mt-8 border-t border-gray-100">
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                            <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Credenciales de Demo</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                    <span className="block text-xs font-medium text-gray-900">Admin</span>
+                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin</code>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="block text-xs font-medium text-gray-900">Farmacéutico</span>
+                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">farmaceutico</code>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="block text-xs font-medium text-gray-900">Paswword</span>
+                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin123</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default LoginPage;

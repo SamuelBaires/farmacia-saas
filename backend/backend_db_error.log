@@ -1,0 +1,22 @@
+DB Dependency Error: name 'uuid' is not defined
+Traceback (most recent call last):
+  File "C:\Users\samue\.gemini\antigravity\scratch\farmacia-saas\backend\app\core\database.py", line 25, in get_db
+    yield db
+  File "C:\Users\samue\.gemini\antigravity\scratch\farmacia-saas\backend\venv\Lib\site-packages\fastapi\concurrency.py", line 29, in contextmanager_in_threadpool
+    yield await run_in_threadpool(cm.__enter__)
+  File "C:\Users\samue\.gemini\antigravity\scratch\farmacia-saas\backend\venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\samue\.gemini\antigravity\scratch\farmacia-saas\backend\venv\Lib\site-packages\fastapi\routing.py", line 345, in app
+    solved_result = await solve_dependencies(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\samue\.gemini\antigravity\scratch\farmacia-saas\backend\venv\Lib\site-packages\fastapi\dependencies\utils.py", line 643, in solve_dependencies
+    solved = await call(**solved_result.values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\samue\.gemini\antigravity\scratch\farmacia-saas\backend\app\api\dependencies.py", line 34, in get_current_user
+    user_uuid = uuid.UUID(user_id)
+                ^^^^
+NameError: name 'uuid' is not defined. Did you forget to import 'uuid'?

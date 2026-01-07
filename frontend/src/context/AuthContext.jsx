@@ -1,3 +1,4 @@
+import { supabase } from '../services/supabaseClient'
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/api';
 

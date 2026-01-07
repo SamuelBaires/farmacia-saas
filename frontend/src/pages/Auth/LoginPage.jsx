@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Lock, User, ArrowRight, Shield, Activity, Package } from 'lucide-react';
+import { supabase } from '../../services/supabaseClient'
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');

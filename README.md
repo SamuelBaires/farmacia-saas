@@ -215,7 +215,7 @@ Este sistema está configurado para un despliegue rápido usando **Render** (Fro
 #### 1. Supabase (Base de Datos y Auth)
 1. Crea un proyecto en [Supabase](https://supabase.com/).
 2. En el **SQL Editor**, ejecuta el contenido de [SUPABASE_SETUP.sql](file:///c:/Users/samue/Desktop/farmacia-saas/docs/SUPABASE_SETUP.sql).
-3. Obtén tu `SUPABASE_URL` y `SUPABASE_ANON_KEY` desde Settings > API.
+3. Obtén tu `https://kgdweazdhucbvyqhwjck.supabase.co` y `sb_publishable_cLRS--yvXhz5XiwBtDma5Q_5nq0z04E` desde Settings > API.
 
 #### 2. GitHub
 1. Sube este repositorio a tu cuenta de GitHub.
@@ -247,3 +247,4 @@ Para soporte técnico, contactar a: [email de soporte]
 ---
 
 **Desarrollado para farmacias en El Salvador** 🇸🇻
+

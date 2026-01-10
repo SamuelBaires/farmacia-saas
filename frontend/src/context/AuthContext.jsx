@@ -19,25 +19,41 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Check active sessions and sets the user
         const initAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const { data: profile } = await supabase
-                    .from('usuarios')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
+            // Safety timeout to prevent infinite loading
+            const timeoutId = setTimeout(() => {
+                setLoading(false);
+            }, 5000);
 
-                const userData = profile || {
-                    id: session.user.id,
-                    email: session.user.email,
-                    rol: 'CAJERO',
-                    nombre_completo: session.user.email
-                };
-                setUser(userData);
-                localStorage.setItem('token', session.access_token);
-                localStorage.setItem('user', JSON.stringify(userData));
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                clearTimeout(timeoutId); // Clear timeout if successful
+                if (error) throw error;
+
+                if (session) {
+                    const { data: profile } = await supabase
+                        .from('usuarios')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    const userData = profile || {
+                        id: session.user.id,
+                        email: session.user.email,
+                        rol: 'CAJERO',
+                        nombre_completo: session.user.email
+                    };
+                    setUser(userData);
+                    localStorage.setItem('token', session.access_token);
+                    localStorage.setItem('user', JSON.stringify(userData));
+                }
+            } catch (error) {
+                console.error("Error initializing auth:", error);
+                setUser(null);
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
 
         initAuth();

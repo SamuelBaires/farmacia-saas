@@ -15,8 +15,10 @@ import {
 const Sidebar = () => {
     const { user } = useAuth();
 
+    const userRole = user?.rol?.toUpperCase() || 'CAJERO';
+
     const menuItems = [
-        { path: '/', icon: LayoutDashboard, label: 'Panel', roles: ['ADMINISTRADOR', 'FARMACEUTICO', 'CAJERO'] },
+        { path: '/', icon: LayoutDashboard, label: 'Panel General', roles: ['ADMINISTRADOR'] }, // Solo Admin
         { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', roles: ['ADMINISTRADOR', 'FARMACEUTICO', 'CAJERO'] },
         { path: '/inventario', icon: Package, label: 'Inventario', roles: ['ADMINISTRADOR', 'FARMACEUTICO'] },
         { path: '/clientes', icon: Users, label: 'Clientes', roles: ['ADMINISTRADOR', 'FARMACEUTICO'] },
@@ -26,7 +28,7 @@ const Sidebar = () => {
     ];
 
     const filteredMenuItems = menuItems.filter(item =>
-        item.roles.includes(user?.rol)
+        item.roles.includes(userRole)
     );
 
     return (
@@ -61,10 +63,10 @@ const Sidebar = () => {
                 ))}
             </nav>
 
-            <div className="p-4 border-t">
+            <div className="p-4 border-t bg-gray-50">
                 <div className="text-xs text-gray-500">
-                    <p className="font-medium">{user?.nombre_completo}</p>
-                    <p className="capitalize">{user?.rol?.toLowerCase()}</p>
+                    <p className="font-medium text-gray-900">{user?.nombre_completo}</p>
+                    <p className="capitalize text-gray-500">{user?.rol?.toLowerCase()}</p>
                 </div>
             </div>
         </div>

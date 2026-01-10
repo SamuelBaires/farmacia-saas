@@ -1,14 +1,33 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Enums
-CREATE TYPE rol_usuario AS ENUM ('ADMINISTRADOR', 'FARMACEUTICO', 'CAJERO');
-CREATE TYPE tipo_movimiento AS ENUM ('ENTRADA', 'SALIDA', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO', 'VENCIMIENTO', 'DEVOLUCION');
-CREATE TYPE metodo_pago AS ENUM ('EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO');
-CREATE TYPE estado_caja AS ENUM ('ABIERTA', 'CERRADA', 'PENDIENTE_REVISION');
+-- Enums (Idempotent)
+DO $$ BEGIN
+    CREATE TYPE rol_usuario AS ENUM ('ADMINISTRADOR', 'FARMACEUTICO', 'CAJERO');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE tipo_movimiento AS ENUM ('ENTRADA', 'SALIDA', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO', 'VENCIMIENTO', 'DEVOLUCION');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE metodo_pago AS ENUM ('EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE estado_caja AS ENUM ('ABIERTA', 'CERRADA', 'PENDIENTE_REVISION');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Tables
-CREATE TABLE farmacias (
+CREATE TABLE IF NOT EXISTS farmacias (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre VARCHAR(200) NOT NULL,
     nit VARCHAR(20) UNIQUE NOT NULL,
@@ -22,7 +41,7 @@ CREATE TABLE farmacias (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -35,7 +54,7 @@ CREATE TABLE usuarios (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE proveedores (
+CREATE TABLE IF NOT EXISTS proveedores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     nombre VARCHAR(200) NOT NULL,
@@ -49,7 +68,7 @@ CREATE TABLE proveedores (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE medicamentos (
+CREATE TABLE IF NOT EXISTS medicamentos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     proveedor_id UUID REFERENCES proveedores(id),
@@ -71,7 +90,7 @@ CREATE TABLE medicamentos (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE clientes (
+CREATE TABLE IF NOT EXISTS clientes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     nombre VARCHAR(200) NOT NULL,
@@ -83,7 +102,7 @@ CREATE TABLE clientes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE cajas (
+CREATE TABLE IF NOT EXISTS cajas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     usuario_id UUID NOT NULL REFERENCES usuarios(id),
@@ -97,7 +116,7 @@ CREATE TABLE cajas (
     observaciones TEXT
 );
 
-CREATE TABLE ventas (
+CREATE TABLE IF NOT EXISTS ventas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     usuario_id UUID NOT NULL REFERENCES usuarios(id),
@@ -114,7 +133,7 @@ CREATE TABLE ventas (
     fecha_venta TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE detalle_ventas (
+CREATE TABLE IF NOT EXISTS detalle_ventas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     venta_id UUID NOT NULL REFERENCES ventas(id) ON DELETE CASCADE,
     medicamento_id UUID NOT NULL REFERENCES medicamentos(id),
@@ -125,7 +144,7 @@ CREATE TABLE detalle_ventas (
     fecha_vencimiento DATE
 );
 
-CREATE TABLE movimientos_inventario (
+CREATE TABLE IF NOT EXISTS movimientos_inventario (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     medicamento_id UUID NOT NULL REFERENCES medicamentos(id),
@@ -138,7 +157,7 @@ CREATE TABLE movimientos_inventario (
     fecha_movimiento TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE auditoria (
+CREATE TABLE IF NOT EXISTS auditoria (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     farmacia_id UUID NOT NULL REFERENCES farmacias(id),
     usuario_id UUID NOT NULL REFERENCES usuarios(id),
@@ -152,11 +171,11 @@ CREATE TABLE auditoria (
 );
 
 -- Indexes
-CREATE INDEX idx_medicamentos_codigo_barras ON medicamentos(codigo_barras);
-CREATE INDEX idx_medicamentos_nombre ON medicamentos(nombre_comercial);
-CREATE INDEX idx_ventas_fecha ON ventas(fecha_venta);
-CREATE INDEX idx_usuarios_username ON usuarios(username);
-CREATE INDEX idx_usuarios_email ON usuarios(email);
+CREATE INDEX IF NOT EXISTS idx_medicamentos_codigo_barras ON medicamentos(codigo_barras);
+CREATE INDEX IF NOT EXISTS idx_medicamentos_nombre ON medicamentos(nombre_comercial);
+CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas(fecha_venta);
+CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);
+CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
 
 -- Functions for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -168,17 +187,31 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers
+DROP TRIGGER IF EXISTS update_farmacias_updated_at ON farmacias;
 CREATE TRIGGER update_farmacias_updated_at BEFORE UPDATE ON farmacias FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_usuarios_updated_at ON usuarios;
 CREATE TRIGGER update_usuarios_updated_at BEFORE UPDATE ON usuarios FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_proveedores_updated_at ON proveedores;
 CREATE TRIGGER update_proveedores_updated_at BEFORE UPDATE ON proveedores FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_medicamentos_updated_at ON medicamentos;
 CREATE TRIGGER update_medicamentos_updated_at BEFORE UPDATE ON medicamentos FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_clientes_updated_at ON clientes;
 CREATE TRIGGER update_clientes_updated_at BEFORE UPDATE ON clientes FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 -- RLS (Row Level Security) - Basic Setup for POC
 ALTER TABLE farmacias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow all for authenticated users" ON farmacias;
 CREATE POLICY "Allow all for authenticated users" ON farmacias FOR ALL TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow users to see their own profile" ON usuarios;
 CREATE POLICY "Allow users to see their own profile" ON usuarios FOR SELECT TO authenticated USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Allow admins to see all profiles" ON usuarios;
 CREATE POLICY "Allow admins to see all profiles" ON usuarios FOR SELECT TO authenticated USING (
     EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND rol = 'ADMINISTRADOR')
 );
@@ -197,7 +230,6 @@ ON CONFLICT (id) DO NOTHING;
 -- pero lo más seguro es que el usuario los cree manualmente o use una función de trigger.
 
 -- Por simplicidad en este POC, el trigger sincronizará si se crean desde el panel:
-/*
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -214,10 +246,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
-*/
 
 -- DATOS DE PRUEBA (Para insertar después de haber creado los usuarios en Auth)
 -- Si ya tienes los IDs de auth.users, puedes insertarlos así:

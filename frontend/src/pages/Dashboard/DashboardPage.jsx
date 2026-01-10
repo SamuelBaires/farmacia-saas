@@ -33,28 +33,28 @@ const DashboardPage = () => {
     const stats = [
         {
             title: 'Ventas Hoy',
-            value: `$${metrics?.ventas_hoy.toLocaleString() || '0'}`,
+            value: `$${(metrics?.ventas_hoy ?? 0).toLocaleString()}`,
             icon: DollarSign,
             color: 'bg-green-500',
             textColor: 'text-green-600'
         },
         {
             title: 'Ventas Mes',
-            value: `$${metrics?.ventas_mes.toLocaleString() || '0'}`,
+            value: `$${(metrics?.ventas_mes ?? 0).toLocaleString()}`,
             icon: TrendingUp,
             color: 'bg-purple-500',
             textColor: 'text-purple-600'
         },
         {
             title: 'Stock Bajo',
-            value: metrics?.stock_bajo_count || '0',
+            value: metrics?.stock_bajo_count ?? 0,
             icon: AlertTriangle,
             color: 'bg-yellow-500',
             textColor: 'text-yellow-600'
         },
         {
             title: 'Productos Activos',
-            value: metrics?.total_productos || '0',
+            value: metrics?.total_productos ?? 0,
             icon: Package,
             color: 'bg-blue-500',
             textColor: 'text-blue-600'
@@ -99,7 +99,7 @@ const DashboardPage = () => {
                         <TrendingUp className="w-5 h-5 text-gray-400" />
                     </div>
                     <div className="space-y-4">
-                        {metrics?.top_productos.length > 0 ? (
+                        {metrics?.top_productos?.length > 0 ? (
                             metrics.top_productos.map((item, i) => (
                                 <div key={i} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
                                     <div className="flex items-center space-x-4">
@@ -126,7 +126,7 @@ const DashboardPage = () => {
                         <AlertTriangle className="w-5 h-5 text-gray-400" />
                     </div>
                     <div className="space-y-4">
-                        {metrics?.alertas_inventario.length > 0 ? (
+                        {metrics?.alertas_inventario?.length > 0 ? (
                             metrics.alertas_inventario.map((item, i) => (
                                 <div key={i} className="flex items-center space-x-4 p-4 bg-yellow-50/50 border border-yellow-100 rounded-2xl">
                                     <div className="bg-yellow-100 p-2 rounded-lg">

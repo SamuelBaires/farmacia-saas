@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -10,32 +10,64 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
-    const { login } = useAuth();
+
     const navigate = useNavigate();
+    const { isAuthenticated, loading: authLoading } = useAuth(); // Obtener estado de auth
+
+    // Redirigir si ya está autenticado
+    useEffect(() => {
+        if (!authLoading && isAuthenticated) {
+            navigate('/');
+        }
+    }, [isAuthenticated, authLoading, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            const data = await login(email, password);
+            // Promesa de timeout para evitar hang eterno
+            const loginPromise = async () => {
+                const { data: { user }, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                // Obtener perfil para redirección
+                const { data: profile, error: profileError } = await supabase
+                    .from('usuarios')
+                    .select('rol')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profileError) {
+                    console.warn("Error al buscar perfil:", profileError);
+                }
+
+                const role = profile?.rol;
+                return role;
+            };
+
+            const racePromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Tiempo de espera agotado (10s)')), 10000);
+            });
+
+            const role = await Promise.race([loginPromise(), racePromise]);
+
             toast.success('¡Bienvenido al sistema!');
 
             // Redirect based on role
-            const role = data.user.rol;
-            if (role === 'ADMINISTRADOR') {
-                navigate('/');
-            } else if (role === 'FARMACEUTICO') {
-                navigate('/inventario');
-            } else if (role === 'CAJERO') {
-                navigate('/pos');
-            } else {
-                navigate('/');
-            }
+            if (role === 'ADMINISTRADOR') navigate('/');
+            else if (role === 'FARMACEUTICO') navigate('/inventario');
+            else if (role === 'CAJERO') navigate('/pos');
+            else navigate('/');
+
         } catch (error) {
             console.error('Login error:', error);
-            const errorMessage = error.message || 'Credenciales incorrectas';
-            toast.error(errorMessage);
+            const errorMessage = error.message || 'Error desconocido';
+            toast.error(`Error: ${errorMessage}`);
         } finally {
             setLoading(false);
         }

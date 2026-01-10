@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { TrendingUp, Package, AlertTriangle, DollarSign, Activity } from 'lucide-react';
 import { reportesService } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const DashboardPage = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [metrics, setMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Redirigir cajeros al POS ya que no tienen acceso a métricas generales
+        if (user?.rol === 'CAJERO') {
+            navigate('/pos');
+            return;
+        }
+
         const fetchMetrics = async () => {
             try {
                 const data = await reportesService.getDashboard();
@@ -20,7 +30,7 @@ const DashboardPage = () => {
             }
         };
         fetchMetrics();
-    }, []);
+    }, [user, navigate]);
 
     if (loading) {
         return (

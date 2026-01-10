@@ -203,26 +203,6 @@ const LoginPage = () => {
                         </button>
                     </form>
 
-                    {/* Demo Credentials */}
-                    <div className="pt-8 mt-8 border-t border-gray-100">
-                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Credenciales de Demo</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                    <span className="block text-xs font-medium text-gray-900">Admin</span>
-                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin@farmacia.com</code>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="block text-xs font-medium text-gray-900">Farmacéutico</span>
-                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">farm@farmacia.com</code>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="block text-xs font-medium text-gray-900">Password</span>
-                                    <code className="block text-xs text-gray-500 bg-white px-2 py-1 rounded border">admin123</code>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

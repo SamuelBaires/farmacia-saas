@@ -162,32 +162,12 @@ export const medicamentosService = {
 
 export const ventasService = {
     crearVenta: async (ventaData) => {
-        const { items, ...ventaInfo } = ventaData;
+        // Enviar todo al backend (RPC) para manejo transaccional
+        const { data, error } = await supabase
+            .rpc('procesar_venta', { venta_data: ventaData });
 
-        // 1. Insertar venta
-        const { data: venta, error: ventaError } = await supabase
-            .from('ventas')
-            .insert([ventaInfo])
-            .select()
-            .single();
-        if (ventaError) throw ventaError;
-
-        // 2. Preparar detalles
-        const detalles = items.map(item => ({
-            venta_id: venta.id,
-            medicamento_id: item.id,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio_venta,
-            subtotal: item.cantidad * item.precio_venta
-        }));
-
-        // 3. Insertar detalles
-        const { error: detalleError } = await supabase
-            .from('detalle_ventas')
-            .insert(detalles);
-        if (detalleError) throw detalleError;
-
-        return venta;
+        if (error) throw error;
+        return data; // { success: true, venta_id: ... }
     },
 
     getVentas: async () => {

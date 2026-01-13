@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { medicamentosService, posService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { Scan, Plus, Minus, Trash2, CreditCard, Search } from 'lucide-react';
+import { Scan, Plus, Minus, Trash2, CreditCard, Search, AlertCircle } from 'lucide-react';
 
 const POSPage = () => {
     const { user } = useAuth();
@@ -57,14 +57,23 @@ const POSPage = () => {
             if (medicamento) {
                 agregarAlCarrito(medicamento);
                 setBusqueda('');
-                toast.success(`Producto agregado: ${medicamento.nombre_comercial}`);
+                if (medicamento.medicamento_controlado) {
+                    toast((t) => (
+                        <span className="flex items-center">
+                            <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                            <b>MEDICAMENTO CONTROLADO</b>
+                            <span className="ml-1 text-sm">Verifique receta.</span>
+                        </span>
+                    ), { duration: 5000, style: { border: '1px solid #EF4444', background: '#FEF2F2' } });
+                } else {
+                    toast.success(`Agregado: ${medicamento.nombre_comercial}`);
+                }
             } else {
                 toast.error('Producto no encontrado');
             }
         } catch (error) {
             console.error(error);
-            // If error is "Row not found", it's fine, we handled it above
-            if (error?.code !== 'PGRST116') { // Supabase 'Row not found' often returns error
+            if (error?.code !== 'PGRST116') {
                 toast.error('Producto no encontrado');
             }
         } finally {
@@ -100,7 +109,6 @@ const POSPage = () => {
         }
 
         const medicamento = medicamentos.find(m => m.id === id);
-        // Also check if item is in cart but not in medications list (rare but possible if updated)
         const itemEnCarrito = carrito.find(i => i.id === id);
         const stockMax = medicamento ? medicamento.stock_actual : (itemEnCarrito?.stock_actual || 1000);
 
@@ -129,6 +137,16 @@ const POSPage = () => {
             return;
         }
 
+        // Validate Controlled Meds before Finalizing
+        const controlados = carrito.filter(item => item.medicamento_controlado);
+        if (controlados.length > 0) {
+            // In a real app, we might prompt for an supervisor PIN here.
+            // For now, we enforce a confirm dialog or just proceed with the warning logged.
+            if (!window.confirm("Esta venta contiene MEDICAMENTOS CONTROLADOS. ¿Ha verificado la receta médica y cumple con la normativa?")) {
+                return;
+            }
+        }
+
         setProcessingPayment(true);
         try {
             const ventaData = {
@@ -142,14 +160,14 @@ const POSPage = () => {
                 descuento: 0,
                 subtotal: subtotal,
                 total: total,
-                cliente_id: null // TODO: Add client selector if needed
+                cliente_id: null
             };
 
             await posService.crearVenta(ventaData);
 
             toast.success('¡Venta procesada exitosamente!');
             setCarrito([]);
-            cargarMedicamentos(); // Refresh stock immediately
+            cargarMedicamentos();
         } catch (error) {
             console.error(error);
             toast.error(error.message || 'Error al procesar venta');
@@ -211,8 +229,8 @@ const POSPage = () => {
                                     onClick={() => agregarAlCarrito(med)}
                                     disabled={med.stock_actual <= 0}
                                     className={`p-4 border rounded-lg text-left transition-all ${med.stock_actual > 0
-                                            ? 'border-gray-200 hover:border-primary-500 hover:bg-primary-50 hover:shadow-md'
-                                            : 'border-red-100 bg-red-50 opacity-60 cursor-not-allowed'
+                                        ? 'border-gray-200 hover:border-primary-500 hover:bg-primary-50 hover:shadow-md'
+                                        : 'border-red-100 bg-red-50 opacity-60 cursor-not-allowed'
                                         }`}
                                 >
                                     <div className="flex justify-between items-start">
@@ -228,6 +246,11 @@ const POSPage = () => {
                                             Stock: {med.stock_actual}
                                         </span>
                                     </div>
+                                    {med.medicamento_controlado && (
+                                        <div className="mt-1 text-[10px] text-red-600 font-bold bg-red-50 inline-block px-1 rounded">
+                                            CONTROLADO
+                                        </div>
+                                    )}
                                 </button>
                             ))}
                     </div>
@@ -252,33 +275,27 @@ const POSPage = () => {
                         </div>
                     ) : (
                         carrito.map((item) => (
-                            <div key={item.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-right-4">
+                            <div key={item.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-right-4 relative">
+                                {item.medicamento_controlado && (
+                                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" title="Medicamento Controlado"></span>
+                                )}
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex-1">
                                         <p className="font-semibold text-sm text-gray-800">{item.nombre_comercial}</p>
                                         <p className="text-xs text-gray-500">${item.precio_venta} unitario</p>
                                     </div>
-                                    <button
-                                        onClick={() => eliminarDelCarrito(item.id)}
-                                        className="text-red-400 hover:text-red-600 transition-colors p-1"
-                                    >
+                                    <button onClick={() => eliminarDelCarrito(item.id)} className="text-red-400 hover:text-red-600 transition-colors p-1">
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
 
                                 <div className="flex items-center justify-between bg-white p-1 rounded border border-gray-100">
                                     <div className="flex items-center space-x-2">
-                                        <button
-                                            onClick={() => actualizarCantidad(item.id, item.cantidad - 1)}
-                                            className="w-7 h-7 flex items-center justify-center bg-gray-50 border rounded hover:bg-gray-100 text-gray-600"
-                                        >
+                                        <button onClick={() => actualizarCantidad(item.id, item.cantidad - 1)} className="w-7 h-7 flex items-center justify-center bg-gray-50 border rounded hover:bg-gray-100 text-gray-600">
                                             <Minus className="w-3 h-3" />
                                         </button>
                                         <span className="w-8 text-center font-bold text-gray-800">{item.cantidad}</span>
-                                        <button
-                                            onClick={() => actualizarCantidad(item.id, item.cantidad + 1)}
-                                            className="w-7 h-7 flex items-center justify-center bg-gray-50 border rounded hover:bg-gray-100 text-gray-600"
-                                        >
+                                        <button onClick={() => actualizarCantidad(item.id, item.cantidad + 1)} className="w-7 h-7 flex items-center justify-center bg-gray-50 border rounded hover:bg-gray-100 text-gray-600">
                                             <Plus className="w-3 h-3" />
                                         </button>
                                     </div>

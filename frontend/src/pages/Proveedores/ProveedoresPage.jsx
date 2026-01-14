@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { proveedoresService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Plus, Search, Truck, Phone, Mail, MapPin, Package, FileText, X, AlertCircle } from 'lucide-react';
 
 const ProveedoresPage = () => {
+    const { user } = useAuth();
+    const canEdit = user?.rol === 'ADMINISTRADOR';
+
     const [proveedores, setProveedores] = useState([]);
     const [busqueda, setBusqueda] = useState('');
     const [loading, setLoading] = useState(true);
@@ -108,13 +112,15 @@ const ProveedoresPage = () => {
                     <h1 className="text-3xl font-bold text-gray-900">Proveedores</h1>
                     <p className="text-gray-600 mt-1">Gestión de proveedores y abastecimiento</p>
                 </div>
-                <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="btn-primary flex items-center space-x-2"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span>Añadir Proveedor</span>
-                </button>
+                {canEdit && (
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="btn-primary flex items-center space-x-2"
+                    >
+                        <Plus className="w-5 h-5" />
+                        <span>Añadir Proveedor</span>
+                    </button>
+                )}
             </div>
 
             {/* Search */}
@@ -198,13 +204,15 @@ const ProveedoresPage = () => {
                                                 >
                                                     <Package className="w-5 h-5" />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleEdit(p)}
-                                                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                                    title="Editar"
-                                                >
-                                                    <FileText className="w-5 h-5" />
-                                                </button>
+                                                {canEdit && (
+                                                    <button
+                                                        onClick={() => handleEdit(p)}
+                                                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                                        title="Editar"
+                                                    >
+                                                        <FileText className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

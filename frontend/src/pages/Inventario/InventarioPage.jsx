@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { medicamentosService, proveedoresService } from '../../services/api';
+import { medicamentosService, proveedoresService, auditoriaService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext'; // Integrate Auth
 import toast from 'react-hot-toast';
 import {
-    Plus, Search, AlertTriangle, Package, Edit2, X, Save,
+    Plus, Search, AlertTriangle, Package, Edit2, X, Save, Trash2,
     Filter, ChevronLeft, ChevronRight, Calendar, AlertCircle, CheckCircle
 } from 'lucide-react';
 
@@ -18,7 +18,7 @@ const InventarioPage = () => {
     // Auth & Role Logic
     const { user } = useAuth();
     const isCajero = user?.rol === 'CAJERO';
-    const canEdit = ['ADMINISTRADOR', 'FARMACEUTICO'].includes(user?.rol);
+    const canEdit = user?.rol === 'ADMINISTRADOR';
 
     // Data State
     const [medicamentos, setMedicamentos] = useState([]);
@@ -165,6 +165,31 @@ const InventarioPage = () => {
         setShowModal(true);
     };
 
+    const handleDelete = async (med) => {
+        if (!window.confirm(`¿Estás seguro de eliminar ${med.nombre_comercial}?`)) return;
+
+        try {
+            await medicamentosService.delete(med.id);
+            
+            // Audit Log
+            await auditoriaService.registrarAccion({
+                usuario_id: user.id,
+                farmacia_id: user.farmacia_id || user.farmacia?.id, // Ensure we have farmacia_id
+                tabla: 'medicamentos',
+                accion: 'DELETE',
+                datos_anteriores: med,
+                datos_nuevos: null,
+                detalle: `Producto eliminado: ${med.nombre_comercial}`
+            });
+
+            toast.success('Producto eliminado');
+            cargarDatos();
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al eliminar producto');
+        }
+    };
+
     const handleNew = () => {
         setFormData(initialFormState());
         setEditingId(null);
@@ -173,19 +198,46 @@ const InventarioPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Sanitize Payload
+        const payload = {
+            ...formData,
+            farmacia_id: user.farmacia_id || user.farmacia?.id, // Inyectar ID de farmacia del usuario
+            stock_minimo: formData.stock_minimo === '' ? 0 : Number(formData.stock_minimo),
+            stock_actual: Number(formData.stock_actual),
+            precio_compra: (formData.precio_compra === '' || formData.precio_compra === null) ? 0 : Number(formData.precio_compra),
+            precio_venta: Number(formData.precio_venta),
+            fecha_vencimiento: formData.fecha_vencimiento === '' ? null : formData.fecha_vencimiento,
+            proveedor_id: formData.proveedor_id === '' ? null : formData.proveedor_id,
+        };
+
         try {
             if (editingId) {
-                await medicamentosService.update(editingId, formData);
+                // Audit Price Change
+                const oldData = medicamentos.find(m => m.id === editingId);
+                if (oldData && oldData.precio_venta !== payload.precio_venta) {
+                    await auditoriaService.registrarAccion({
+                        usuario_id: user.id,
+                        farmacia_id: user.farmacia_id || user.farmacia?.id,
+                        tabla: 'medicamentos',
+                        accion: 'UPDATE_PRICE',
+                        datos_anteriores: { precio_venta: oldData.precio_venta },
+                        datos_nuevos: { precio_venta: payload.precio_venta },
+                        detalle: `Cambio de precio ${oldData.nombre_comercial}: ${oldData.precio_venta} -> ${payload.precio_venta}`
+                    });
+                }
+
+                await medicamentosService.update(editingId, payload);
                 toast.success('Medicamento actualizado');
             } else {
-                await medicamentosService.create(formData);
+                await medicamentosService.create(payload);
                 toast.success('Medicamento creado');
             }
             setShowModal(false);
             cargarDatos();
         } catch (error) {
             console.error(error);
-            toast.error('Error al guardar medicamento');
+            toast.error('Error al guardar: ' + (error.message || 'Verifique datos'));
         }
     };
 
@@ -404,9 +456,14 @@ const InventarioPage = () => {
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 {canEdit && (
-                                                    <button onClick={() => handleEdit(med)} className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
+                                                    <div className="flex justify-end gap-1">
+                                                        <button onClick={() => handleEdit(med)} className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Editar">
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(med)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </td>
                                         </tr>
@@ -526,6 +583,19 @@ const InventarioPage = () => {
                                         <span className="bg-primary-100 text-primary-700 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">3</span>
                                         Inventario
                                     </h3>
+                                    <div className="mb-2">
+                                        <label className="label">Proveedor</label>
+                                        <select
+                                            className="input-field w-full"
+                                            value={formData.proveedor_id}
+                                            onChange={e => setFormData({ ...formData, proveedor_id: e.target.value })}
+                                        >
+                                            <option value="">-- Seleccionar --</option>
+                                            {proveedores.map(prov => (
+                                                <option key={prov.id} value={prov.id}>{prov.nombre}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="label">Stock Actual *</label>

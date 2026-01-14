@@ -52,6 +52,26 @@ export const authService = {
     }
 };
 
+export const auditoriaService = {
+    registrarAccion: async (accionData) => {
+        // accionData: { usuario_id, farmacia_id, tabla, accion, datos_anteriores, datos_nuevos, detalle }
+        // Note: The python model has 'ip_address' and 'user_agent' but we might not have them easily in pure client side without backend help.
+        // We will send what we can.
+        const { data, error } = await supabase
+            .from('auditoria')
+            .insert([{
+                ...accionData,
+                created_at: new Date().toISOString()
+            }]);
+        
+        if (error) {
+            console.error('Error logging audit:', error);
+            // Don't throw, audit failure shouldn't block main flow usually
+        }
+        return data;
+    }
+};
+
 export const usuariosService = {
     getAll: async () => {
         const { data, error } = await supabase
@@ -73,14 +93,20 @@ export const usuariosService = {
     },
 
     create: async (userData) => {
-        // En Supabase Auth, los usuarios se crean en auth.users
-        // Este método podría ser para crear el perfil en public.usuarios o usar una Edge Function para crear auth+perfil
-        // Asumimos creación de perfil o gestión administrativa
+        // For Supabase Auth, we ideally use the Admin API or an Edge Function.
+        // Here we simulate the profile creation in 'usuarios' table.
+        // In a real production app, this should trigger a backend function to create the Auth user too.
+        
+        // 1. Create Profile
         const { data, error } = await supabase
             .from('usuarios')
-            .insert([userData])
+            .insert([{
+                ...userData,
+                activo: true
+            }])
             .select()
             .single();
+            
         if (error) throw error;
         return data;
     },
@@ -103,6 +129,17 @@ export const usuariosService = {
             .eq('id', id);
         if (error) throw error;
         return true;
+    },
+
+    toggleActivo: async (id, estadoActual) => {
+        const { data, error } = await supabase
+            .from('usuarios')
+            .update({ activo: !estadoActual })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     }
 };
 
@@ -157,6 +194,18 @@ export const medicamentosService = {
             .eq('activo', true);
         if (error) throw error;
         return data;
+    },
+
+    delete: async (id) => {
+        // Soft delete (set activo = false) is safer for medicines with history
+        const { data, error } = await supabase
+            .from('medicamentos')
+            .update({ activo: false })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     }
 };
 
@@ -196,6 +245,21 @@ export const clientesService = {
         const { data, error } = await supabase.from('clientes').update(changes).eq('id', id).select().single();
         if (error) throw error;
         return data;
+    },
+    getHistorial: async (id) => {
+        const { data, error } = await supabase
+            .from('ventas')
+            .select(`
+                *,
+                detalles:detalle_ventas (
+                    *,
+                    medicamento:medicamentos (nombre_comercial)
+                )
+            `)
+            .eq('cliente_id', id)
+            .order('fecha_venta', { ascending: false });
+        if (error) throw error;
+        return data;
     }
 };
 
@@ -204,7 +268,23 @@ export const proveedoresService = {
         const { data, error } = await supabase.from('proveedores').select('*').eq('activo', true).order('nombre');
         if (error) throw error;
         return data;
-    }
+    },
+    getEntradas: async (proveedorId) => {
+        const { data, error } = await supabase
+            .from('movimientos_inventario')
+            .select(`
+                *,
+                medicamento:medicamentos!inner (
+                    nombre_comercial,
+                    proveedor_id
+                )
+            `)
+            .eq('medicamento.proveedor_id', proveedorId)
+            .eq('tipo_movimiento', 'ENTRADA')
+            .order('fecha_movimiento', { ascending: false });
+        if (error) throw error;
+        return data;
+    },
 };
 
 export const configuracionService = {
@@ -222,6 +302,66 @@ export const configuracionService = {
         const { data, error } = await supabase.from('usuarios').select('*').order('nombre_completo');
         if (error) throw error;
         return data;
+    }
+};
+
+export const cajasService = {
+    verificarEstado: async (usuario_id) => {
+        const { data, error } = await supabase
+            .from('cajas')
+            .select('*')
+            .eq('usuario_id', usuario_id)
+            .eq('estado', 'ABIERTA')
+            .single();
+            
+        if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows found"
+        return data; // Returns the open box record or null
+    },
+
+    abrirCaja: async (cajaData) => {
+        const { data, error } = await supabase
+            .from('cajas')
+            .insert([cajaData])
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    cerrarCaja: async (id, datosCierre) => {
+        const { data, error } = await supabase
+            .from('cajas')
+            .update({
+                ...datosCierre,
+                estado: 'CERRADA',
+                fecha_cierre: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    getTotalesCaja: async (caja_id) => {
+        // Calculate totals for the specific box session
+        const { data: ventas, error } = await supabase
+            .from('ventas')
+            .select('total, metodo_pago')
+            .eq('caja_id', caja_id);
+            
+        if (error) throw error;
+
+        const totales = ventas.reduce((acc, venta) => {
+            const monto = Number(venta.total);
+            acc.total += monto;
+            if (venta.metodo_pago === 'EFECTIVO') acc.efectivo += monto;
+            else if (venta.metodo_pago === 'TARJETA') acc.tarjeta += monto;
+            else acc.otros += monto;
+            return acc;
+        }, { total: 0, efectivo: 0, tarjeta: 0, otros: 0 });
+
+        return totales;
     }
 };
 
@@ -255,15 +395,6 @@ export const reportesService = {
         if (errProd) throw errProd;
 
         // 4. Stock Bajo
-        const { data: stockBajo, error: errStock } = await supabase
-            .from('medicamentos')
-            .select('id, nombre_comercial, stock_actual, stock_minimo')
-            .lte('stock_actual', supabase.rpc('stock_minimo_col') || 10) // Usamos filtro JS post-fetch si rpc falla, o simple logic
-            .eq('activo', true);
-
-        // Mejor aproximación para stock bajo sin RPC compleja: traer todo y filtrar o usar query raw
-        // Por ahora, asumimos que stock_minimo es columna. La comparación columna vs columna en postgrest suele requerir RPC o filtro específico.
-        // Haremos un fetch de alertas directas usando la función de api "getAlertasStockMinimo" logic
         const alertas = await medicamentosService.getAlertasStockMinimo();
 
         return {
@@ -271,9 +402,81 @@ export const reportesService = {
             ventas_hoy: totalHoy,
             total_productos: totalProductos,
             stock_bajo_count: alertas.length,
-            top_productos: [], // Implementar si hay tabla detalle_ventas
+            top_productos: [], 
             alertas_inventario: alertas.slice(0, 5)
         };
+    },
+
+    getReporteVentas: async (fechaInicio, fechaFin) => {
+        let query = supabase
+            .from('ventas')
+            .select(`
+                *,
+                usuarios (nombre_completo),
+                clientes (nombre, documento_identidad),
+                detalles:detalle_ventas (
+                    cantidad,
+                    precio_unitario,
+                    subtotal,
+                    medicamento:medicamentos (nombre_comercial, nombre_generico)
+                )
+            `)
+            .order('fecha_venta', { ascending: false });
+
+        if (fechaInicio) query = query.gte('fecha_venta', fechaInicio);
+        if (fechaFin) {
+             const endDate = new Date(fechaFin);
+             endDate.setHours(23, 59, 59, 999);
+             query = query.lte('fecha_venta', endDate.toISOString());
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data;
+    },
+
+    getReporteInventario: async (soloBajoStock = false) => {
+        let query = supabase
+            .from('medicamentos')
+            .select('*, proveedores (nombre)')
+            .eq('activo', true)
+            .order('nombre_comercial');
+
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        if (soloBajoStock) {
+            return data.filter(m => m.stock_actual <= m.stock_minimo);
+        }
+        return data;
+    },
+
+    getReporteControlados: async (fechaInicio, fechaFin) => {
+        let query = supabase
+            .from('movimientos_inventario')
+            .select(`
+                *,
+                usuario:usuarios (nombre_completo),
+                medicamento:medicamentos!inner (
+                    nombre_comercial,
+                    nombre_generico,
+                    es_controlado,
+                    lote
+                )
+            `)
+            .eq('medicamento.es_controlado', true)
+            .order('fecha_movimiento', { ascending: true });
+
+        if (fechaInicio) query = query.gte('fecha_movimiento', fechaInicio);
+        if (fechaFin) {
+             const endDate = new Date(fechaFin);
+             endDate.setHours(23, 59, 59, 999);
+             query = query.lte('fecha_movimiento', endDate.toISOString());
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data;
     }
 };
 

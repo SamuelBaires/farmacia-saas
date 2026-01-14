@@ -6,6 +6,10 @@ import {
 } from 'lucide-react';
 import { reportesService } from '../../services/api';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 const ReportesPage = () => {
     const [loading, setLoading] = useState(false);
@@ -84,8 +88,54 @@ const ReportesPage = () => {
     const handleDownload = async (tipo, formato) => {
         try {
             setLoading(true);
-            toast.loading(`Preparando reporte ${formato.toUpperCase()}...`, { id: 'download' });
-            await reportesService.descargarReporte(tipo, formato);
+            toast.loading(`Generando reporte ${formato.toUpperCase()}...`, { id: 'download' });
+
+            let data = [];
+            let fileName = `reporte_${tipo}_${format(new Date(), 'yyyy-MM-dd')}`;
+
+            // Fetch Data
+            switch(tipo) {
+                case 'ventas':
+                    data = await reportesService.getReporteVentas(filters.fechaInicio, filters.fechaFin);
+                    break;
+                case 'inventario':
+                case 'vencimientos':
+                    data = await reportesService.getReporteInventario();
+                    if (tipo === 'vencimientos') {
+                        // Filter for expiring items (e.g., next 90 days)
+                        const today = new Date();
+                        const limit = new Date();
+                        limit.setDate(today.getDate() + 90);
+                        data = data.filter(item => {
+                             if (!item.fecha_vencimiento) return false;
+                             const d = new Date(item.fecha_vencimiento);
+                             return d >= today && d <= limit;
+                        });
+                        fileName = `reporte_vencimientos_${format(new Date(), 'yyyy-MM-dd')}`;
+                    } else if (filters.soloAlertas) {
+                         data = data.filter(m => m.stock_actual <= m.stock_minimo);
+                    }
+                    break;
+                case 'controlados':
+                    data = await reportesService.getReporteControlados(filters.fechaInicio, filters.fechaFin);
+                    break;
+                default:
+                    // Fallback for others not implemented yet
+                    console.warn('Report type not fully implemented in download handler');
+                    break;
+            }
+
+            if (!data || data.length === 0) {
+                toast.error('No hay datos para generar el reporte', { id: 'download' });
+                return;
+            }
+
+            if (formato === 'pdf') {
+                generatePDF(tipo, data, fileName);
+            } else {
+                generateExcel(tipo, data, fileName);
+            }
+
             toast.success(`Reporte generado con éxito`, { id: 'download' });
         } catch (error) {
             console.error('Error al descargar reporte:', error);
@@ -93,6 +143,107 @@ const ReportesPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const generatePDF = (tipo, data, fileName) => {
+        const doc = new jsPDF();
+        const title = tipo === 'ventas' ? 'Reporte de Ventas' :
+                      tipo === 'inventario' ? 'Reporte de Inventario' :
+                      tipo === 'vencimientos' ? 'Reporte de Próximos Vencimientos' :
+                      'Libro de Medicamentos Controlados';
+
+        doc.setFontSize(18);
+        doc.text(title, 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
+        
+        let headers = [];
+        let body = [];
+
+        if (tipo === 'ventas') {
+             headers = [['Fecha', 'No. Venta', 'Cliente', 'Método Pago', 'Total']];
+             body = data.map(v => [
+                 format(new Date(v.fecha_venta), 'dd/MM/yyyy HH:mm'),
+                 v.numero_venta,
+                 v.clientes?.nombre || 'Consumidor Final',
+                 v.metodo_pago,
+                 `$${v.total}`
+             ]);
+        } else if (tipo === 'inventario' || tipo === 'vencimientos') {
+             headers = [['Código', 'Producto', 'Stock', 'Mínimo', 'Vencimiento', 'Estado']];
+             body = data.map(i => [
+                 i.codigo_barras,
+                 i.nombre_comercial,
+                 i.stock_actual,
+                 i.stock_minimo,
+                 i.fecha_vencimiento ? format(new Date(i.fecha_vencimiento), 'dd/MM/yyyy') : 'N/A',
+                 i.stock_actual <= i.stock_minimo ? 'BAJO' : 'OK'
+             ]);
+        } else if (tipo === 'controlados') {
+             // Formato DNM aproximado
+             headers = [['Fecha', 'Medicamento', 'Movimiento', 'Cantidad', 'Usuario', 'Ref']];
+             body = data.map(m => [
+                 format(new Date(m.fecha_movimiento), 'dd/MM/yyyy HH:mm'),
+                 m.medicamento?.nombre_comercial,
+                 m.tipo_movimiento,
+                 m.cantidad,
+                 m.usuario?.nombre_completo || 'N/A',
+                 m.referencia || '-'
+             ]);
+        }
+
+        doc.autoTable({
+            startY: 40,
+            head: headers,
+            body: body,
+        });
+
+        doc.save(`${fileName}.pdf`);
+    };
+
+    const generateExcel = (tipo, data, fileName) => {
+        let wsData = [];
+        
+        if (tipo === 'ventas') {
+             wsData = data.map(v => ({
+                 Fecha: format(new Date(v.fecha_venta), 'dd/MM/yyyy HH:mm'),
+                 NumeroVenta: v.numero_venta,
+                 Cliente: v.clientes?.nombre || 'Consumidor Final',
+                 MetodoPago: v.metodo_pago,
+                 Subtotal: v.subtotal,
+                 Descuento: v.descuento,
+                 Total: v.total,
+                 Vendedor: v.usuarios?.nombre_completo
+             }));
+        } else if (tipo === 'inventario' || tipo === 'vencimientos') {
+             wsData = data.map(i => ({
+                 Codigo: i.codigo_barras,
+                 Producto: i.nombre_comercial,
+                 Generico: i.nombre_generico,
+                 Stock: i.stock_actual,
+                 StockMinimo: i.stock_minimo,
+                 Vencimiento: i.fecha_vencimiento,
+                 Proveedor: i.proveedores?.nombre,
+                 PrecioCompra: i.precio_compra,
+                 PrecioVenta: i.precio_venta
+             }));
+        } else if (tipo === 'controlados') {
+             wsData = data.map(m => ({
+                 Fecha: format(new Date(m.fecha_movimiento), 'dd/MM/yyyy HH:mm'),
+                 Medicamento: m.medicamento?.nombre_comercial,
+                 Lote: m.medicamento?.lote,
+                 TipoMovimiento: m.tipo_movimiento,
+                 Cantidad: m.cantidad,
+                 Usuario: m.usuario?.nombre_completo,
+                 Referencia: m.referencia,
+                 Observaciones: m.observaciones
+             }));
+        }
+
+        const ws = XLSX.utils.json_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+        XLSX.writeFile(wb, `${fileName}.xlsx`);
     };
 
     const getColorClasses = (color) => {

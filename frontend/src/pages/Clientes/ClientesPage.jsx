@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { clientesService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Plus, Search, User, Phone, Mail, MapPin, FileText, History, X } from 'lucide-react';
 
 const ClientesPage = () => {
+    const { user } = useAuth();
+    const canEdit = user?.rol === 'ADMINISTRADOR';
+
     const [clientes, setClientes] = useState([]);
     const [busqueda, setBusqueda] = useState('');
     const [loading, setLoading] = useState(true);
@@ -67,6 +71,8 @@ const ClientesPage = () => {
         setShowModal(true);
     };
 
+    const [topProductos, setTopProductos] = useState([]);
+
     const handleViewHistory = async (cliente) => {
         setSelectedCliente(cliente);
         setShowHistoryModal(true);
@@ -74,7 +80,29 @@ const ClientesPage = () => {
         try {
             const data = await clientesService.getHistorial(cliente.id);
             setHistorial(data);
+
+            // Calculate Top Products
+            const productStats = {};
+            data.forEach(venta => {
+                venta.detalles.forEach(detalle => {
+                    const id = detalle.medicamento_id;
+                    const name = detalle.medicamento?.nombre_comercial || 'Desconocido';
+                    if (!productStats[id]) {
+                        productStats[id] = { name, quantity: 0, totalSpent: 0 };
+                    }
+                    productStats[id].quantity += Number(detalle.cantidad);
+                    productStats[id].totalSpent += Number(detalle.subtotal);
+                });
+            });
+
+            const sortedProducts = Object.values(productStats)
+                .sort((a, b) => b.quantity - a.quantity)
+                .slice(0, 5);
+            
+            setTopProductos(sortedProducts);
+
         } catch (error) {
+            console.error(error);
             toast.error('Error al cargar historial');
         } finally {
             setLoadingHistory(false);
@@ -105,13 +133,15 @@ const ClientesPage = () => {
                     <h1 className="text-3xl font-bold text-gray-900">Clientes</h1>
                     <p className="text-gray-600 mt-1">Gestión de cartera de clientes</p>
                 </div>
-                <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="btn-primary flex items-center space-x-2"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span>Registrar Cliente</span>
-                </button>
+                {canEdit && (
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="btn-primary flex items-center space-x-2"
+                    >
+                        <Plus className="w-5 h-5" />
+                        <span>Registrar Cliente</span>
+                    </button>
+                )}
             </div>
 
             {/* Search */}
@@ -183,12 +213,14 @@ const ClientesPage = () => {
                                 )}
                             </div>
 
-                            <button
-                                onClick={() => handleEdit(cliente)}
-                                className="w-full py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
-                            >
-                                Editar Datos
-                            </button>
+                            {canEdit && (
+                                <button
+                                    onClick={() => handleEdit(cliente)}
+                                    className="w-full py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+                                >
+                                    Editar Datos
+                                </button>
+                            )}
                         </div>
                     ))
                 )}
@@ -299,26 +331,47 @@ const ClientesPage = () => {
                                     Este cliente no tiene compras registradas
                                 </div>
                             ) : (
-                                <div className="space-y-3">
-                                    {historial.map((venta) => (
-                                        <div key={venta.id} className="p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-bold text-gray-900">Venta #{venta.numero_venta}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {new Date(venta.fecha_venta).toLocaleString('es-SV')}
-                                                    </p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-lg font-bold text-primary-600">${Number(venta.total).toFixed(2)}</p>
-                                                    <p className="text-xs text-gray-500 capitalize">{venta.metodo_pago.toLowerCase()}</p>
-                                                </div>
-                                            </div>
-                                            <div className="mt-2 pt-2 border-t border-dashed text-xs text-gray-600">
-                                                {venta.detalles.length} productos adquiridos
+                                <div className="space-y-6">
+                                    {/* Top Products Section */}
+                                    {topProductos.length > 0 && (
+                                        <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">
+                                            <h3 className="text-sm font-bold text-primary-800 mb-3 flex items-center gap-2">
+                                                <div className="bg-white p-1 rounded-md shadow-sm">🏆</div>
+                                                Productos Favoritos
+                                            </h3>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                {topProductos.map((prod, idx) => (
+                                                    <div key={idx} className="bg-white p-2 rounded-lg text-xs border border-primary-100 flex justify-between items-center">
+                                                        <span className="font-medium text-gray-700 truncate pr-2">{prod.name}</span>
+                                                        <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-bold">{prod.quantity} un.</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
-                                    ))}
+                                    )}
+
+                                    <h3 className="text-sm font-bold text-gray-700 px-1">Historial de Facturas</h3>
+                                    <div className="space-y-3">
+                                        {historial.map((venta) => (
+                                            <div key={venta.id} className="p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors bg-white">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-bold text-gray-900">Venta #{venta.numero_venta}</p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {new Date(venta.fecha_venta).toLocaleString('es-SV')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-lg font-bold text-primary-600">${Number(venta.total).toFixed(2)}</p>
+                                                        <p className="text-xs text-gray-500 capitalize">{venta.metodo_pago.toLowerCase()}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-2 pt-2 border-t border-dashed text-xs text-gray-600">
+                                                    {venta.detalles.length} productos adquiridos
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>

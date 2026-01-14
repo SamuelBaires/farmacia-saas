@@ -4,10 +4,12 @@ import {
     Plus, Edit2, Trash2, Check, X, Bell, Globe, DollarSign,
     Clock, Smartphone, Printer, CreditCard, Mail
 } from 'lucide-react';
-import { configuracionService } from '../../services/api';
+import { configuracionService, usuariosService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const ConfiguracionPage = () => {
+    const { user: currentUser } = useAuth();
     const [activeTab, setActiveTab] = useState('general');
     const [loading, setLoading] = useState(false);
     const [config, setConfig] = useState({
@@ -20,18 +22,49 @@ const ConfiguracionPage = () => {
     const [usuarios, setUsuarios] = useState([]);
     const [showUserModal, setShowUserModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+    const [formData, setFormData] = useState({
+        nombre_completo: '',
+        email: '',
+        username: '',
+        rol: 'CAJERO',
+        password: ''
+    });
+
+    const isAdmin = currentUser?.rol === 'ADMINISTRADOR';
+    const canViewUsers = ['ADMINISTRADOR', 'FARMACEUTICO'].includes(currentUser?.rol);
 
     useEffect(() => {
         fetchConfig();
-        fetchUsuarios();
-    }, []);
+        if (canViewUsers) {
+            fetchUsuarios();
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (editingUser) {
+            setFormData({
+                nombre_completo: editingUser.nombre_completo,
+                email: editingUser.email || '',
+                username: editingUser.username || '',
+                rol: editingUser.rol,
+                password: '' // Password intentionally blank on edit
+            });
+        } else {
+            setFormData({
+                nombre_completo: '',
+                email: '',
+                username: '',
+                rol: 'CAJERO',
+                password: ''
+            });
+        }
+    }, [editingUser, showUserModal]);
 
     const fetchConfig = async () => {
         try {
             setLoading(true);
             const data = await configuracionService.getConfig();
 
-            // Map flat DB structure to nested state
             if (data) {
                 setConfig(prev => ({
                     ...prev,
@@ -39,11 +72,10 @@ const ConfiguracionPage = () => {
                         nombre_farmacia: data.nombre || '',
                         direccion: data.direccion || '',
                         telefono: data.telefono || '',
-                        email: data.email || '', // Assuming email column exists or fallback
+                        email: data.email || '',
                         moneda: 'USD',
                         zona_horaria: 'America/El_Salvador'
                     },
-                    // Keep other sections with defaults or map if columns exist
                     ...prev
                 }));
             }
@@ -57,31 +89,22 @@ const ConfiguracionPage = () => {
 
     const fetchUsuarios = async () => {
         try {
-            // Check if getUsuarios exists in service, otherwise use fallback or simple query
-            // Added check because getUsuarios might not be defined in api.js based on previous view
-            const data = await configuracionService.getUsuarios ?
-                await configuracionService.getUsuarios() :
-                []; // Fallback to empty if not implemented
+            const data = await usuariosService.getAll();
             if (Array.isArray(data)) setUsuarios(data);
         } catch (error) {
             console.error("Error fetching users:", error);
-            // Don't show toast to avoid spamming if service is missing
+            toast.error('Error al cargar usuarios');
         }
     };
 
     const handleSaveConfig = async () => {
         try {
             setLoading(true);
-            // Map nested state back to flat DB structure for update
             const updates = {
                 nombre: config.general.nombre_farmacia,
                 direccion: config.general.direccion,
                 telefono: config.general.telefono,
-                // Add other fields as they become available in DB
             };
-
-            // We need the ID for update, assuming we have it stored or singleton
-            // For now, simpler to just catch error if api.js handles it differently
             await configuracionService.updateConfig(updates);
             toast.success('Configuración guardada correctamente');
         } catch (error) {
@@ -89,6 +112,45 @@ const ConfiguracionPage = () => {
             toast.error('Error al guardar configuración');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSaveUser = async (e) => {
+        e.preventDefault();
+        try {
+            setLoading(true);
+            if (editingUser) {
+                const changes = { ...formData };
+                if (!changes.password) delete changes.password; // Don't send empty password
+                
+                await usuariosService.update(editingUser.id, changes);
+                toast.success('Usuario actualizado');
+            } else {
+                await usuariosService.create(formData);
+                toast.success('Usuario creado');
+            }
+            setShowUserModal(false);
+            fetchUsuarios();
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al guardar usuario');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleToggleStatus = async (usuario) => {
+        if (usuario.id === currentUser.id) {
+            toast.error('No puedes desactivar tu propio usuario');
+            return;
+        }
+        try {
+            await usuariosService.toggleActivo(usuario.id, usuario.activo);
+            toast.success(`Usuario ${usuario.activo ? 'desactivado' : 'activado'}`);
+            fetchUsuarios();
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al cambiar estado');
         }
     };
 
@@ -102,7 +164,89 @@ const ConfiguracionPage = () => {
     ];
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500 relative">
+            {/* User Modal */}
+            {showUserModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95">
+                        <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-900">
+                                {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+                            </h3>
+                            <button onClick={() => setShowUserModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveUser} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Nombre Completo</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-2 bg-gray-50 border-gray-200 border rounded-xl"
+                                    value={formData.nombre_completo}
+                                    onChange={e => setFormData({...formData, nombre_completo: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Usuario (Login)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 bg-gray-50 border-gray-200 border rounded-xl"
+                                        value={formData.username}
+                                        onChange={e => setFormData({...formData, username: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Rol</label>
+                                    <select
+                                        className="w-full px-4 py-2 bg-gray-50 border-gray-200 border rounded-xl"
+                                        value={formData.rol}
+                                        onChange={e => setFormData({...formData, rol: e.target.value})}
+                                    >
+                                        <option value="CAJERO">Cajero</option>
+                                        <option value="FARMACEUTICO">Farmacéutico</option>
+                                        <option value="ADMINISTRADOR">Administrador</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    className="w-full px-4 py-2 bg-gray-50 border-gray-200 border rounded-xl"
+                                    value={formData.email}
+                                    onChange={e => setFormData({...formData, email: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">
+                                    {editingUser ? 'Nueva Contraseña (Opcional)' : 'Contraseña'}
+                                </label>
+                                <input
+                                    type="password"
+                                    className="w-full px-4 py-2 bg-gray-50 border-gray-200 border rounded-xl"
+                                    value={formData.password}
+                                    onChange={e => setFormData({...formData, password: e.target.value})}
+                                    required={!editingUser}
+                                    placeholder={editingUser ? 'Dejar en blanco para mantener actual' : ''}
+                                />
+                            </div>
+                            <div className="pt-4 flex gap-3">
+                                <button type="button" onClick={() => setShowUserModal(false)} className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-xl">
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={loading} className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 shadow-lg">
+                                    {loading ? 'Guardando...' : 'Guardar Usuario'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 font-outfit">Configuración del Sistema</h1>
@@ -203,70 +347,88 @@ const ConfiguracionPage = () => {
                                     <User className="w-6 h-6 text-primary-600" />
                                     Gestión de Usuarios
                                 </h2>
-                                <button
-                                    onClick={() => { setEditingUser(null); setShowUserModal(true); }}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-xl font-bold hover:bg-primary-200 transition-all"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    Nuevo Usuario
-                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => { setEditingUser(null); setShowUserModal(true); }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-xl font-bold hover:bg-primary-200 transition-all"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                        Nuevo Usuario
+                                    </button>
+                                )}
                             </div>
 
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-gray-100">
-                                            <th className="text-left py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Nombre / Usuario</th>
-                                            <th className="text-left py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Rol</th>
-                                            <th className="text-left py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Estado</th>
-                                            <th className="text-right py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {usuarios.map((user) => (
-                                            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="py-4">
-                                                    <div className="font-bold text-gray-900">{user.nombre_completo}</div>
-                                                    <div className="text-sm text-gray-500">@{user.username}</div>
-                                                </td>
-                                                <td className="py-4 text-sm">
-                                                    <span className={`px-3 py-1 rounded-full font-bold text-[10px] uppercase ${user.rol === 'ADMINISTRADOR' ? 'bg-purple-100 text-purple-700' :
-                                                        user.rol === 'FARMACEUTICO' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                                                        }`}>
-                                                        {user.rol}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4">
-                                                    {user.activo ?
-                                                        <span className="flex items-center gap-1 text-green-600 text-sm font-bold">
-                                                            <Check className="w-4 h-4" /> Activo
-                                                        </span> :
-                                                        <span className="flex items-center gap-1 text-red-600 text-sm font-bold">
-                                                            <X className="w-4 h-4" /> Inactivo
-                                                        </span>
-                                                    }
-                                                </td>
-                                                <td className="py-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => { setEditingUser(user); setShowUserModal(true); }}
-                                                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
-                                                        >
-                                                            <Edit2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </td>
+                            {!canViewUsers ? (
+                                <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-100 text-gray-500">
+                                    <Shield className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                                    <p className="font-bold">Acceso Restringido</p>
+                                    <p className="text-sm">Solo el personal autorizado puede gestionar usuarios.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-gray-100">
+                                                <th className="text-left py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Nombre / Usuario</th>
+                                                <th className="text-left py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Rol</th>
+                                                <th className="text-left py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Estado</th>
+                                                {isAdmin && <th className="text-right py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Acciones</th>}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {usuarios.map((user) => (
+                                                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="py-4">
+                                                        <div className="font-bold text-gray-900">{user.nombre_completo}</div>
+                                                        <div className="text-sm text-gray-500">@{user.username}</div>
+                                                    </td>
+                                                    <td className="py-4 text-sm">
+                                                        <span className={`px-3 py-1 rounded-full font-bold text-[10px] uppercase ${user.rol === 'ADMINISTRADOR' ? 'bg-purple-100 text-purple-700' :
+                                                            user.rol === 'FARMACEUTICO' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                                                            }`}>
+                                                            {user.rol}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-4">
+                                                        {user.activo ?
+                                                            <span className="flex items-center gap-1 text-green-600 text-sm font-bold">
+                                                                <Check className="w-4 h-4" /> Activo
+                                                            </span> :
+                                                            <span className="flex items-center gap-1 text-red-600 text-sm font-bold">
+                                                                <X className="w-4 h-4" /> Inactivo
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                    {isAdmin && (
+                                                        <td className="py-4 text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => { setEditingUser(user); setShowUserModal(true); }}
+                                                                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                                                    title="Editar"
+                                                                >
+                                                                    <Edit2 className="w-4 h-4" />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleToggleStatus(user)}
+                                                                    className={`p-2 rounded-lg transition-all ${user.activo 
+                                                                        ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' 
+                                                                        : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
+                                                                    title={user.activo ? "Desactivar" : "Activar"}
+                                                                >
+                                                                    {user.activo ? <Trash2 className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
-
                     {activeTab === 'parametros' && (
                         <div className="space-y-8">
                             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">

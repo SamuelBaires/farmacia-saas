@@ -83,20 +83,25 @@ const InventarioPage = () => {
         setLoading(true);
         try {
             const [medicamentosData, alertasData, proveedoresData] = await Promise.all([
-                medicamentosService.getAll({ limit: 1000 }),
+                medicamentosService.getAll(),
                 medicamentosService.getAlertasStockMinimo(),
                 proveedoresService.getAll()
             ]);
-            setMedicamentos(medicamentosData);
-            setAlertas(alertasData);
-            setProveedores(proveedoresData);
 
-            const labs = [...new Set(medicamentosData.map(m => m.laboratorio_fabricacion).filter(Boolean))].sort();
+            // Set data even if empty
+            setMedicamentos(medicamentosData || []);
+            setAlertas(alertasData || []);
+            setProveedores(proveedoresData || []);
+
+            const labs = [...new Set((medicamentosData || []).map(m => m.laboratorio_fabricacion).filter(Boolean))].sort();
             setLaboratorios(labs);
 
         } catch (error) {
-            console.error(error);
-            toast.error('Error al cargar inventario');
+            console.error('Error al cargar inventario:', error);
+            toast.error('Error al cargar inventario: ' + (error.message || 'Error de conexión'));
+            // Reset to empty lists on error to avoid undefined errors
+            setMedicamentos([]);
+            setAlertas([]);
         } finally {
             setLoading(false);
         }
@@ -110,7 +115,7 @@ const InventarioPage = () => {
                 med.nombre_comercial.toLowerCase().includes(searchText) ||
                 med.nombre_generico?.toLowerCase().includes(searchText) ||
                 med.principio_activo?.toLowerCase().includes(searchText) ||
-                med.codigo_barras.includes(searchText);
+                (med.codigo_barras && String(med.codigo_barras).includes(searchText));
 
             if (!matchesSearch) return false;
 
@@ -170,7 +175,7 @@ const InventarioPage = () => {
 
         try {
             await medicamentosService.delete(med.id);
-            
+
             // Audit Log
             await auditoriaService.registrarAccion({
                 usuario_id: user.id,

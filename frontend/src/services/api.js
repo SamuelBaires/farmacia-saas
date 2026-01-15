@@ -63,7 +63,7 @@ export const auditoriaService = {
                 ...accionData,
                 created_at: new Date().toISOString()
             }]);
-        
+
         if (error) {
             console.error('Error logging audit:', error);
             // Don't throw, audit failure shouldn't block main flow usually
@@ -96,7 +96,7 @@ export const usuariosService = {
         // For Supabase Auth, we ideally use the Admin API or an Edge Function.
         // Here we simulate the profile creation in 'usuarios' table.
         // In a real production app, this should trigger a backend function to create the Auth user too.
-        
+
         // 1. Create Profile
         const { data, error } = await supabase
             .from('usuarios')
@@ -106,7 +106,7 @@ export const usuariosService = {
             }])
             .select()
             .single();
-            
+
         if (error) throw error;
         return data;
     },
@@ -187,13 +187,17 @@ export const medicamentosService = {
     },
 
     getAlertasStockMinimo: async () => {
+        // Supabase doesn't natively support column-to-column comparison in .lte() easily.
+        // We fetch active meds and filter client-side for better reliability in this specific case.
         const { data, error } = await supabase
             .from('medicamentos')
             .select('*')
-            .lte('stock_actual', 'stock_minimo') // stock_actual <= stock_minimo
             .eq('activo', true);
+
         if (error) throw error;
-        return data;
+
+        // Return only items where stock is below or equal to minimum
+        return data.filter(m => Number(m.stock_actual) <= Number(m.stock_minimo));
     },
 
     delete: async (id) => {
@@ -313,7 +317,7 @@ export const cajasService = {
             .eq('usuario_id', usuario_id)
             .eq('estado', 'ABIERTA')
             .single();
-            
+
         if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows found"
         return data; // Returns the open box record or null
     },
@@ -349,7 +353,7 @@ export const cajasService = {
             .from('ventas')
             .select('total, metodo_pago')
             .eq('caja_id', caja_id);
-            
+
         if (error) throw error;
 
         const totales = ventas.reduce((acc, venta) => {
@@ -402,7 +406,7 @@ export const reportesService = {
             ventas_hoy: totalHoy,
             total_productos: totalProductos,
             stock_bajo_count: alertas.length,
-            top_productos: [], 
+            top_productos: [],
             alertas_inventario: alertas.slice(0, 5)
         };
     },
@@ -425,9 +429,9 @@ export const reportesService = {
 
         if (fechaInicio) query = query.gte('fecha_venta', fechaInicio);
         if (fechaFin) {
-             const endDate = new Date(fechaFin);
-             endDate.setHours(23, 59, 59, 999);
-             query = query.lte('fecha_venta', endDate.toISOString());
+            const endDate = new Date(fechaFin);
+            endDate.setHours(23, 59, 59, 999);
+            query = query.lte('fecha_venta', endDate.toISOString());
         }
 
         const { data, error } = await query;
@@ -444,7 +448,7 @@ export const reportesService = {
 
         const { data, error } = await query;
         if (error) throw error;
-        
+
         if (soloBajoStock) {
             return data.filter(m => m.stock_actual <= m.stock_minimo);
         }
@@ -469,9 +473,9 @@ export const reportesService = {
 
         if (fechaInicio) query = query.gte('fecha_movimiento', fechaInicio);
         if (fechaFin) {
-             const endDate = new Date(fechaFin);
-             endDate.setHours(23, 59, 59, 999);
-             query = query.lte('fecha_movimiento', endDate.toISOString());
+            const endDate = new Date(fechaFin);
+            endDate.setHours(23, 59, 59, 999);
+            query = query.lte('fecha_movimiento', endDate.toISOString());
         }
 
         const { data, error } = await query;

@@ -321,8 +321,15 @@ BEGIN
         DROP TRIGGER IF EXISTS tr_force_farmacia_usuarios ON public.usuarios;
         CREATE TRIGGER tr_force_farmacia_usuarios
         BEFORE INSERT ON public.usuarios
-        FOR EACH ROW
         WHEN (NEW.farmacia_id IS NULL)
         EXECUTE FUNCTION public.force_farmacia_id();
+    END IF;
+
+    -- Trigger Proveedores
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'proveedores') THEN
+        DROP TRIGGER IF EXISTS tr_force_farmacia_proveedores ON public.proveedores;
+        CREATE TRIGGER tr_force_farmacia_proveedores
+        BEFORE INSERT ON public.proveedores
+        FOR EACH ROW EXECUTE FUNCTION public.force_farmacia_id();
     END IF;
 END $$;

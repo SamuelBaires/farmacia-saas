@@ -273,22 +273,17 @@ export const proveedoresService = {
         if (error) throw error;
         return data;
     },
-    getEntradas: async (proveedorId) => {
-        const { data, error } = await supabase
-            .from('movimientos_inventario')
-            .select(`
-                *,
-                medicamento:medicamentos!inner (
-                    nombre_comercial,
-                    proveedor_id
-                )
-            `)
-            .eq('medicamento.proveedor_id', proveedorId)
-            .eq('tipo_movimiento', 'ENTRADA')
-            .order('fecha_movimiento', { ascending: false });
+},
+    create: async (proveedor) => {
+        const { data, error } = await supabase.from('proveedores').insert([proveedor]).select().single();
         if (error) throw error;
         return data;
     },
+        update: async (id, changes) => {
+            const { data, error } = await supabase.from('proveedores').update(changes).eq('id', id).select().single();
+            if (error) throw error;
+            return data;
+        },
 };
 
 export const configuracionService = {

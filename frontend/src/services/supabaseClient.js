@@ -4,6 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("❌ ERROR: Las variables VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY no están definidas.");
     const errorMsg = 'Error Crítico: Faltan variables de entorno VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY. Revise su archivo .env';
     console.error(errorMsg);
     // Inyectar mensaje en el DOM para que sea visible en pantalla blanca

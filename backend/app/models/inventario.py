@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Numeric, DateTime, Text, Enum, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, Numeric, DateTime, Text, Enum, ForeignKey, UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 import enum
@@ -17,10 +16,10 @@ class TipoMovimiento(str, enum.Enum):
 class MovimientoInventario(Base):
     __tablename__ = "movimientos_inventario"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farmacia_id = Column(UUID(as_uuid=True), ForeignKey("farmacias.id"), nullable=False, index=True)
-    medicamento_id = Column(UUID(as_uuid=True), ForeignKey("medicamentos.id"), nullable=False, index=True)
-    usuario_id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    farmacia_id = Column(UUID, ForeignKey("farmacias.id"), nullable=False, index=True)
+    medicamento_id = Column(UUID, ForeignKey("medicamentos.id"), nullable=False, index=True)
+    usuario_id = Column(UUID, ForeignKey("usuarios.id"), nullable=False)
     
     tipo_movimiento = Column(Enum(TipoMovimiento), nullable=False)
     cantidad = Column(Integer, nullable=False)

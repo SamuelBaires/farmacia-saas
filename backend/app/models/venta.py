@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, DateTime, Text, Enum, Boolean, ForeignKey, Integer, Date
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Numeric, DateTime, Text, Enum, Boolean, ForeignKey, Integer, Date, UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 import enum
@@ -15,11 +14,11 @@ class MetodoPago(str, enum.Enum):
 class Venta(Base):
     __tablename__ = "ventas"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farmacia_id = Column(UUID(as_uuid=True), ForeignKey("farmacias.id"), nullable=False, index=True)
-    usuario_id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False, index=True)
-    cliente_id = Column(UUID(as_uuid=True), ForeignKey("clientes.id"), nullable=True, index=True)
-    caja_id = Column(UUID(as_uuid=True), ForeignKey("cajas.id"), nullable=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    farmacia_id = Column(UUID, ForeignKey("farmacias.id"), nullable=False, index=True)
+    usuario_id = Column(UUID, ForeignKey("usuarios.id"), nullable=False, index=True)
+    cliente_id = Column(UUID, ForeignKey("clientes.id"), nullable=True, index=True)
+    caja_id = Column(UUID, ForeignKey("cajas.id"), nullable=True)
     
     numero_venta = Column(String(50), unique=True, nullable=False)
     subtotal = Column(Numeric(10, 2), nullable=False)
@@ -44,9 +43,9 @@ class Venta(Base):
 class DetalleVenta(Base):
     __tablename__ = "detalle_ventas"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    venta_id = Column(UUID(as_uuid=True), ForeignKey("ventas.id"), nullable=False)
-    medicamento_id = Column(UUID(as_uuid=True), ForeignKey("medicamentos.id"), nullable=False)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    venta_id = Column(UUID, ForeignKey("ventas.id"), nullable=False)
+    medicamento_id = Column(UUID, ForeignKey("medicamentos.id"), nullable=False)
     
     cantidad = Column(Integer, nullable=False)
     precio_unitario = Column(Numeric(10, 2), nullable=False)

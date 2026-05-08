@@ -44,7 +44,7 @@ def init_db():
         db.add(farmacia)
         db.flush()
         
-        print(f"✓ Farmacia creada: {farmacia.nombre}")
+        print(f"OK - Farmacia creada: {farmacia.nombre}")
         
         # Create Users
         usuarios_data = [
@@ -85,7 +85,7 @@ def init_db():
             usuarios.append(usuario)
         
         db.flush()
-        print(f"✓ {len(usuarios)} usuarios creados")
+        print(f"OK - {len(usuarios)} usuarios creados")
         
         # Create Proveedores
         proveedores_data = [
@@ -113,7 +113,7 @@ def init_db():
             proveedores.append(proveedor)
         
         db.flush()
-        print(f"✓ {len(proveedores)} proveedores creados")
+        print(f"OK - {len(proveedores)} proveedores creados")
         
         # Create Medicamentos
         medicamentos_data = [
@@ -203,7 +203,7 @@ def init_db():
             db.add(medicamento)
         
         db.flush()
-        print(f"✓ {len(medicamentos_data)} medicamentos creados")
+        print(f"OK - {len(medicamentos_data)} medicamentos creados")
         
         # Create Clientes
         clientes_data = [
@@ -228,12 +228,12 @@ def init_db():
             db.add(cliente)
         
         db.flush()
-        print(f"✓ {len(clientes_data)} clientes creados")
+        print(f"OK - {len(clientes_data)} clientes creados")
         
         db.commit()
         
         print("\n" + "="*50)
-        print("✅ Base de datos inicializada correctamente!")
+        print("SUCCESS - Base de datos inicializada correctamente!")
         print("="*50)
         print("\nCredenciales de acceso:")
         print("\nAdministrador:")
@@ -248,7 +248,7 @@ def init_db():
         print("\n" + "="*50)
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"ERROR: {e}")
         db.rollback()
         raise
     finally:

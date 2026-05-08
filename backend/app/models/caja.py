@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, Numeric, DateTime, Text, Enum, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Numeric, DateTime, Text, Enum, ForeignKey, UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 import enum
@@ -14,9 +13,9 @@ class EstadoCaja(str, enum.Enum):
 class Caja(Base):
     __tablename__ = "cajas"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farmacia_id = Column(UUID(as_uuid=True), ForeignKey("farmacias.id"), nullable=False)
-    usuario_id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    farmacia_id = Column(UUID, ForeignKey("farmacias.id"), nullable=False)
+    usuario_id = Column(UUID, ForeignKey("usuarios.id"), nullable=False)
     
     monto_inicial = Column(Numeric(10, 2), nullable=False)
     monto_final = Column(Numeric(10, 2), nullable=True)

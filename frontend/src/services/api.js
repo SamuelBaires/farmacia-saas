@@ -273,17 +273,16 @@ export const proveedoresService = {
         if (error) throw error;
         return data;
     },
-},
     create: async (proveedor) => {
         const { data, error } = await supabase.from('proveedores').insert([proveedor]).select().single();
         if (error) throw error;
         return data;
     },
-        update: async (id, changes) => {
-            const { data, error } = await supabase.from('proveedores').update(changes).eq('id', id).select().single();
-            if (error) throw error;
-            return data;
-        },
+    update: async (id, changes) => {
+        const { data, error } = await supabase.from('proveedores').update(changes).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+    },
 };
 
 export const configuracionService = {

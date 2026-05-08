@@ -1,16 +1,15 @@
 import uuid
 from datetime import datetime, date
-from sqlalchemy import Column, String, Boolean, DateTime, Numeric, Integer, Date, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Boolean, DateTime, Numeric, Integer, Date, Text, ForeignKey, UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class Medicamento(Base):
     __tablename__ = "medicamentos"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farmacia_id = Column(UUID(as_uuid=True), ForeignKey("farmacias.id"), nullable=False, index=True)
-    proveedor_id = Column(UUID(as_uuid=True), ForeignKey("proveedores.id"), nullable=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    farmacia_id = Column(UUID, ForeignKey("farmacias.id"), nullable=False, index=True)
+    proveedor_id = Column(UUID, ForeignKey("proveedores.id"), nullable=True)
     
     codigo_barras = Column(String(50), nullable=False, index=True)
     nombre_comercial = Column(String(200), nullable=False, index=True)

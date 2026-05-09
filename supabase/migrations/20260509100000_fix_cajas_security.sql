@@ -34,7 +34,10 @@ DECLARE
 BEGIN
     FOREACH t IN ARRAY tables
     LOOP
-        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = t) THEN
+        -- Solo si la tabla existe Y tiene la columna farmacia_id
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = t) AND
+           EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = t AND column_name = 'farmacia_id') 
+        THEN
             EXECUTE format('DROP TRIGGER IF EXISTS tr_force_farmacia_%I ON public.%I', t, t);
             EXECUTE format('CREATE TRIGGER tr_force_farmacia_%I BEFORE INSERT ON public.%I FOR EACH ROW EXECUTE FUNCTION public.force_farmacia_id()', t, t);
         END IF;
@@ -53,7 +56,10 @@ DECLARE
 BEGIN
     FOREACH t IN ARRAY tables
     LOOP
-        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = t) THEN
+        -- Solo si la tabla existe Y tiene la columna farmacia_id
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = t) AND
+           EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = t AND column_name = 'farmacia_id')
+        THEN
             EXECUTE format('DROP POLICY IF EXISTS "Aislamiento %I" ON public.%I', t, t);
             EXECUTE format('CREATE POLICY "Aislamiento %I" ON public.%I FOR ALL USING (farmacia_id = public.get_my_farmacia_id()) WITH CHECK (farmacia_id = public.get_my_farmacia_id())', t, t);
         END IF;

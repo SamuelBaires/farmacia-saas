@@ -80,8 +80,10 @@ const POSPage = () => {
             setCaja(nuevaCaja);
             toast.success('Caja abierta correctamente');
         } catch (error) {
-            console.error(error);
-            toast.error('Error al abrir la caja');
+            console.error('Error al abrir caja:', error);
+            // Mostrar mensaje específico si viene de la base de datos
+            const errorMsg = error.message || error.details || 'Error desconocido';
+            toast.error(`Error al abrir la caja: ${errorMsg}`);
         }
     };
 

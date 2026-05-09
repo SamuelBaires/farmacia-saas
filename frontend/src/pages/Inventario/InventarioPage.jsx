@@ -241,8 +241,9 @@ const InventarioPage = () => {
             setShowModal(false);
             cargarDatos();
         } catch (error) {
-            console.error(error);
-            toast.error('Error al guardar: ' + (error.message || 'Verifique datos'));
+            console.error('Error al guardar medicamento:', error);
+            const errorMsg = error.message || error.details || 'Verifique los datos (precios, stock, etc.)';
+            toast.error(`Error al guardar: ${errorMsg}`);
         }
     };
 

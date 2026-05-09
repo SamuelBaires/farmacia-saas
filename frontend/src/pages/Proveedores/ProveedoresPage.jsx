@@ -44,19 +44,26 @@ const ProveedoresPage = () => {
 
     const handleSave = async (e) => {
         e.preventDefault();
+        const payload = {
+            ...formData,
+            farmacia_id: user.farmacia_id || user.farmacia?.id
+        };
+
         try {
             if (selectedProveedor) {
-                await proveedoresService.update(selectedProveedor.id, formData);
+                await proveedoresService.update(selectedProveedor.id, payload);
                 toast.success('Proveedor actualizado');
             } else {
-                await proveedoresService.create(formData);
+                await proveedoresService.create(payload);
                 toast.success('Proveedor registrado');
             }
             setShowModal(false);
             cargarProveedores();
             resetForm();
         } catch (error) {
-            toast.error('Error al guardar proveedor');
+            console.error('Error al guardar proveedor:', error);
+            const errorMsg = error.message || error.details || 'Verifique los datos e intente de nuevo';
+            toast.error(`Error al guardar proveedor: ${errorMsg}`);
         }
     };
 

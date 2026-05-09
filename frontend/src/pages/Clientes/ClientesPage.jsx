@@ -43,19 +43,26 @@ const ClientesPage = () => {
 
     const handleSave = async (e) => {
         e.preventDefault();
+        const payload = {
+            ...formData,
+            farmacia_id: user.farmacia_id || user.farmacia?.id
+        };
+
         try {
             if (selectedCliente) {
-                await clientesService.update(selectedCliente.id, formData);
+                await clientesService.update(selectedCliente.id, payload);
                 toast.success('Cliente actualizado');
             } else {
-                await clientesService.create(formData);
+                await clientesService.create(payload);
                 toast.success('Cliente registrado');
             }
             setShowModal(false);
             cargarClientes();
             resetForm();
         } catch (error) {
-            toast.error('Error al guardar cliente');
+            console.error('Error al guardar cliente:', error);
+            const errorMsg = error.message || error.details || 'Verifique los datos e intente de nuevo';
+            toast.error(`Error al guardar cliente: ${errorMsg}`);
         }
     };
 
